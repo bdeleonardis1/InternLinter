@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -11,11 +12,13 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/google/go-github/v27/github"
 	"github.com/waigani/diffparser"
+	"golang.org/x/oauth2"
 )
 
 func main() {
-	cmd := exec.Command("git", "diff", "eda68e65..96fc3")
+	cmd := exec.Command("git", "diff", "eda68e65..96fc2b3")
 	//cmd := exec.Command("ls")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -47,12 +50,12 @@ func main() {
 		text, _ := reader.ReadString('\n')
 		text = strings.TrimRight(text, "\n")
 		if text == "Y" {
-			fmt.Println("Opened")
+			openPR()
 		} else {
 			fmt.Println("Okay, fix those problems")
 		}
 	} else {
-		fmt.Println("Pull request has been opened")
+		openPR()
 	}
 }
 
@@ -113,6 +116,33 @@ func findFlaws(diff *diffparser.Diff) (todos map[int]string, prints map[int]stri
 	}
 
 	return todos, prints, nil
+}
+
+func openPR() (string, error) {
+	ctx := context.Background()
+	fmt.Println("os.Getenv:", os.Getenv("GITHUBOAUTH"))
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: os.Getenv("GITHUBOAUTH")},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+	client := github.NewClient(tc)
+
+	newPR := &github.NewPullRequest{
+		Title:               github.String("Testing PR"),
+		Head:                github.String("bdeleonardis1:feature"),
+		Base:                github.String("master"),
+		Body:                github.String("Testing testing 123"),
+		MaintainerCanModify: github.Bool(true),
+	}
+
+	pr, _, err := client.PullRequests.Create(context.Background(), "codebase-berkeley-mentored-project-fa17", "LinterTester", newPR)
+	if err != nil {
+		fmt.Println("error:", err)
+		return "", err
+	}
+
+	fmt.Printf("PR created: %s\n", pr.GetHTMLURL())
+	return "", nil
 }
 
 // If I decide to refactor again I can always use this:
