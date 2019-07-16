@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -14,7 +15,7 @@ import (
 )
 
 func main() {
-	cmd := exec.Command("git", "diff", "eda68e65..96fc2b3")
+	cmd := exec.Command("git", "diff", "eda68e65..96fc3")
 	//cmd := exec.Command("ls")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -26,16 +27,33 @@ func main() {
 	if err != nil {
 		fmt.Println("Error:", err)
 	} else {
-		fmt.Println("TODO comments:")
-		for line, text := range todos {
-			fmt.Println("Line:", line, "-", text)
+		if len(todos) > 0 {
+			fmt.Println("TODO comments:")
+			for line, text := range todos {
+				fmt.Println("Line:", line, "-", text)
+			}
 		}
-		fmt.Println("Print Statements:")
-		for line, text := range prints {
-			fmt.Println("Line:", line, "-", text)
+		if len(prints) > 0 {
+			fmt.Println("Print Statements:")
+			for line, text := range prints {
+				fmt.Println("Line:", line, "-", text)
+			}
 		}
 	}
 
+	if err != nil || len(todos) > 0 || len(prints) > 0 {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Would you still like to open the PR? (Y/n) ")
+		text, _ := reader.ReadString('\n')
+		text = strings.TrimRight(text, "\n")
+		if text == "Y" {
+			fmt.Println("Opened")
+		} else {
+			fmt.Println("Okay, fix those problems")
+		}
+	} else {
+		fmt.Println("Pull request has been opened")
+	}
 }
 
 func findFlaws(diff *diffparser.Diff) (todos map[int]string, prints map[int]string, err error) {
@@ -98,6 +116,7 @@ func findFlaws(diff *diffparser.Diff) (todos map[int]string, prints map[int]stri
 }
 
 // If I decide to refactor again I can always use this:
+
 // ProblemType is a type of problem
 type ProblemType string
 
