@@ -1,5 +1,5 @@
 checkForPrints: true
-checkForTODOs: true
+checkForTODOs: false
 github: 
   defaultBase: master
   defaultMaintainerCanModify: true

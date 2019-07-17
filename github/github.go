@@ -1,6 +1,7 @@
 package github
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -15,8 +16,22 @@ import (
 	"github.com/bdeleonardis1/InternLinter/config"
 )
 
-// OpenPR opens the pull request.
-func OpenPR(config *config.Config) (string, error) {
+// OpenPrIfNecessary opens a pull request if there are no problems or if the user wants to ignore the problems
+func OpenPrIfNecessary(config *config.Config, todos map[int]string, prints map[int]string) (string, error) {
+	if (config.CheckForTODOs && len(todos) > 0) || (config.CheckForPrints && len(prints) > 0) {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Would you still like to open the PR? (Y/n) ")
+		text, _ := reader.ReadString('\n')
+		text = strings.TrimRight(text, "\n")
+		if text == "Y" {
+			return openPR(config)
+		}
+		return "Okay fix those problems", nil
+	}
+	return openPR(config)
+}
+
+func openPR(config *config.Config) (string, error) {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: os.Getenv("GITHUBOAUTH")},
@@ -30,16 +45,14 @@ func OpenPR(config *config.Config) (string, error) {
 	}
 
 	newPR := &github.NewPullRequest{
-		Title:               github.String("Testing PR"),
+		Title:               github.String(config.Github.Title),
 		Head:                github.String(config.Github.Username + ":" + config.Github.Branch),
 		Base:                github.String(config.Github.Base),
-		Body:                github.String("Testing testing 123"),
 		MaintainerCanModify: github.Bool(config.Github.MaintainerCanModify),
 	}
 
 	pr, _, err := client.PullRequests.Create(context.Background(), config.Github.Organization, config.Github.Repository, newPR)
 	if err != nil {
-		fmt.Println("error:", err)
 		return "", err
 	}
 

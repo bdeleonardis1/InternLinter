@@ -1,10 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/bdeleonardis1/InternLinter/config"
 	"github.com/bdeleonardis1/InternLinter/github"
@@ -12,44 +9,52 @@ import (
 )
 
 func main() {
-	config, err := config.GetConfig("")
+	args := config.GetArgs()
+	configPath, ok := args["--config"]
+	if !ok {
+		configPath = ""
+	}
+	config, err := config.GetConfig(configPath)
 	if err != nil {
-		return
+		panic(err)
 	}
 
 	branch := github.GetCurrentBranch()
 	config.Github.Branch = branch
-
+	title, ok := args["--title"]
+	if !ok {
+		panic("To open a pull request there must be a title")
+	}
+	config.Github.Title = title
 	diff, err := github.GetDiff(config.Github.Base, config.Github.Branch)
+	if err != nil {
+		panic(err)
+	}
 	todos, prints, err := linter.FindFlaws(diff)
 	if err != nil {
-		fmt.Println("Error:", err)
-	} else {
-		if len(todos) > 0 {
-			fmt.Println("TODO comments:")
-			for line, text := range todos {
-				fmt.Println("Line:", line, "-", text)
-			}
-		}
-		if len(prints) > 0 {
-			fmt.Println("Print Statements:")
-			for line, text := range prints {
-				fmt.Println("Line:", line, "-", text)
-			}
-		}
+		panic(err)
 	}
+	displayProblems(config, todos, prints)
+	response, err := github.OpenPrIfNecessary(config, todos, prints)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(response)
+}
 
-	if err != nil || len(todos) > 0 || len(prints) > 0 {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Would you still like to open the PR? (Y/n) ")
-		text, _ := reader.ReadString('\n')
-		text = strings.TrimRight(text, "\n")
-		if text == "Y" {
-			github.OpenPR(config)
-		} else {
-			fmt.Println("Okay, fix those problems")
+func displayProblems(config *config.Config, todos map[int]string, prints map[int]string) {
+	if config.CheckForTODOs && len(todos) > 0 {
+		fmt.Println("TODO comments:")
+		for line, text := range todos {
+			fmt.Println("Line:", line, "-", text)
 		}
-	} else {
-		github.OpenPR(config)
 	}
+	fmt.Println()
+	if config.CheckForPrints && len(prints) > 0 {
+		fmt.Println("Print Statements:")
+		for line, text := range prints {
+			fmt.Println("Line:", line, "-", text)
+		}
+	}
+	fmt.Println()
 }
