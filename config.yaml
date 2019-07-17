@@ -1,0 +1,9 @@
+checkForPrints: true
+checkForTODOs: true
+github: 
+  defaultBase: master
+  defaultMaintainerCanModify: true
+  organization: codebase-berkeley-mentored-project-fa17
+  repository: LinterTester
+  username: "bdeleonardis1"
+  isFork: true
